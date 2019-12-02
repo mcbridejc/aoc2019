@@ -1,0 +1,11 @@
+[package]
+name = "aoc2019" #
+version = "0.1.0" 
+authors = ["Jeff McBride"]
+edition = "2018"
+
+[dependencies]
+env_logger = "0.7"
+error-chain = "0.12"
+log = "0.4"
+structopt = "0.3"   
