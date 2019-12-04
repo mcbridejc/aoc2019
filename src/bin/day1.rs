@@ -6,24 +6,7 @@ use std::io::{prelude::*, BufReader};
 //use crate::errors::Result;
 use aoc2019::errors::*;
 
-#[derive(Debug, StructOpt)]
-struct Options {
-    /// Activate debug mode
-    #[structopt(short, long)]
-    debug: bool,
-
-    /// Run part
-    #[structopt(short="o", long="one", help="Run part 1", conflicts_with("part2"), required_unless("part2"))]
-    part1: bool,
-
-    /// Run part2
-    #[structopt(short="t", long="two", help="Run part 2", conflicts_with("part1"), required_unless("part1"))]
-    part2: bool,
-
-    /// Input data file
-    #[structopt(short, long)]
-    input: String,
-}
+use aoc2019::StandardOptions;
 
 fn mass_to_fuel(m: u32) -> u32 {
     let f = m / 3;
@@ -57,7 +40,7 @@ fn read_numbers(file: String) -> Result<Vec<i32>> {
 }
 
 fn main() {
-    let opt = Options::from_args();
+    let opt = StandardOptions::from_args();
 
     println!("Reading from {}", opt.input);
     let list = read_numbers(opt.input).unwrap();
