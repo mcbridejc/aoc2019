@@ -15,6 +15,6 @@ pub struct StandardOptions {
     pub part2: bool,
 
     /// Input data file
-    #[structopt(short, long)]
+    #[structopt(short, long, required=false, default_value="none")]
     pub input: String,
 }
