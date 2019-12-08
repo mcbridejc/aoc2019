@@ -2,7 +2,7 @@ use std::fs;
 
 use structopt::StructOpt;
 
-use aoc2019::errors::*;
+use anyhow::Result;
 use aoc2019::StandardOptions;
 
 #[derive(Debug, StructOpt)]
@@ -21,7 +21,7 @@ fn parse_comma_separated(s: String) -> Result<Vec<u32>> {
 }
 
 fn read_comma_separated(file: String) -> Result<Vec<u32>> {
-    let content = fs::read_to_string(file).chain_err(|| "Error reading input file")?;
+    let content = fs::read_to_string(file)?;
     
     parse_comma_separated(content)
 }

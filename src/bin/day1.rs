@@ -2,9 +2,7 @@ use structopt::StructOpt;
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
 
-//use log::*;
-//use crate::errors::Result;
-use aoc2019::errors::*;
+use anyhow::Result;
 
 use aoc2019::StandardOptions;
 
@@ -29,7 +27,7 @@ fn recursive_mass_to_fuel(m: u32) -> u32 {
 }
 
 fn read_numbers(file: String) -> Result<Vec<i32>> {
-    let f = File::open(file).chain_err(|| "couldn't open input file")?;
+    let f = File::open(file)?;
     let reader = BufReader::new(f);
     let mut v = Vec::<i32>::new();
     for line in reader.lines() {
