@@ -2,6 +2,28 @@ use std::fs;
 use std::str::FromStr;
 use anyhow::Result;
 
+pub fn read_data<T: FromStr>(filepath: String, split_string: &str) -> Result<Vec<T>> {
+    let content = fs::read_to_string(filepath)?;
+    read_data_str(content, split_string)
+} 
+
+pub fn read_data_str<T: FromStr>(content: String, split_string: &str) -> Result<Vec<T>> {
+    let words = content.split(split_string);
+    let data = words.filter_map( |s| {
+        let s = s.trim();
+        if s.len() == 0 {
+            None
+        } else {
+            let result = s.parse::<T>();
+            match result {
+                Ok(parsed) => Some(parsed),
+                Err(_e) => panic!("Bad input string"),
+            }
+        }
+    }).collect();
+    Ok(data)
+} 
+
 /// Read data from a file, splitting first by line, and then by `split_string`, and 
 /// converting each element to type T
 pub fn read_data_2d<T: FromStr>(filepath: String, split_string: &str) -> Result<Vec<Vec<T>>> {
