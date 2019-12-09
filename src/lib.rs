@@ -14,6 +14,7 @@
 
 
 mod options;
-pub mod io;
 pub mod grid;
+pub mod intcode;
+pub mod io;
 pub use options::StandardOptions;
