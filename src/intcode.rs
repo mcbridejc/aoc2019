@@ -1,11 +1,12 @@
 use std::fs;
+use std::mem::discriminant;
 
 use anyhow::Result;
 use log::*;
 
 
 #[derive(Debug)]
-enum Instruction {
+pub enum Instruction {
     Add (i32, i32, i32),
     Mult (i32, i32, i32),
     Input (i32),
@@ -92,7 +93,7 @@ fn imm_mask_from_cmd(cmd: u32) -> u32 {
     mask
 }
 
-struct Executor {
+pub struct Executor {
     pc: u32,
     mem: Vec<i32>,
     input: Vec<i32>,
@@ -113,6 +114,7 @@ impl Executor {
 
     pub fn read_input(&mut self) -> i32 {
         self.inptr += 1;
+        println!("Reading input value {}", self.input[self.inptr-1]);
         self.input[self.inptr-1]
     }
 
@@ -170,8 +172,21 @@ impl Executor {
         instr
     }
 
-    pub fn execute(&mut self, i: Instruction) {
+    pub fn execute(&mut self, i: &Instruction) {
         self.pc = i.run(self);
+    }
+
+    pub fn run_to_output(&mut self) -> Option<i32> {
+        loop {
+            let instruction = self.load();
+            self.execute(&instruction);
+            if discriminant(&instruction) == discriminant(&Instruction::Output(0)) {
+                return Some(*self.output.last().unwrap());
+            }
+            if self.halted {
+                return None;
+            }
+        }
     }
 
     pub fn dump(&self, msg: String) {
@@ -205,7 +220,7 @@ pub fn execute_program(program: &Vec<i32>, input: &Vec<i32>) -> (Vec<i32>, Vec<i
     let mut exec = Executor::new(program.clone());
     exec.set_input(input.clone());
     while !exec.halted {
-        exec.execute(exec.load());
+        exec.execute(&exec.load());
     }
     
     (exec.mem, exec.output)
