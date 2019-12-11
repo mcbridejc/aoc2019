@@ -4,17 +4,19 @@ use std::mem::discriminant;
 use anyhow::Result;
 use log::*;
 
+type Program = Vec<i64>;
 
 #[derive(Debug)]
 pub enum Instruction {
-    Add (i32, i32, i32),
-    Mult (i32, i32, i32),
-    Input (i32),
-    Output (i32),
-    JmpTrue (i32, i32),
-    JmpFalse (i32, i32),
-    CmpLt (i32, i32, i32),
-    CmpEq (i32, i32, i32),
+    Add (i64, i64, i64),
+    Mult (i64, i64, i64),
+    Input (i64),
+    Output (i64),
+    JmpTrue (i64, i64),
+    JmpFalse (i64, i64),
+    CmpLt (i64, i64, i64),
+    CmpEq (i64, i64, i64),
+    SetBase (i64),
     Stop,
 }
 
@@ -30,44 +32,50 @@ impl Instruction {
             Instruction::JmpFalse(_, _) => 3,
             Instruction::CmpLt(_, _, _) => 4,
             Instruction::CmpEq(_, _, _) => 4,
+            Instruction::SetBase(_) => 2,
             Instruction::Stop => 1,
         }
     }
 
     pub fn run(&self, m: &mut Executor) -> u32 {
         let mut new_pc = std::u32::MAX;
+        use Instruction::*;
         match self {
-            Instruction::Add(a, b, out) => m.mem[*out as usize] = a + b,
-            Instruction::Mult(a, b, out) => m.mem[*out as usize] = a * b,
-            Instruction::Input(out) => m.mem[*out as usize] = m.read_input(),
-            Instruction::Output(a) => m.write_output(*a),
-            Instruction::JmpTrue(a, addr) => {
+            Add(a, b, out) => m.write_mem(*out as usize, a + b),
+            Mult(a, b, out) => m.write_mem(*out as usize, a * b),
+            Input(out) => {
+                let input = m.read_input();
+                m.write_mem(*out as usize, input);
+            },
+            Output(a) => m.write_output(*a),
+            JmpTrue(a, addr) => {
                 if *a != 0 {
                     new_pc = *addr as u32;
                 }
             },
-            Instruction::JmpFalse(a, addr) => {
+            JmpFalse(a, addr) => {
                 if *a == 0 {
                     new_pc = *addr as u32;
                 }
             },
-            Instruction::CmpLt(a, b, out) => {
+            CmpLt(a, b, out) => {
                 let y = if *a < *b {
                     1
                 } else {
                     0
                 };
-                m.mem[*out as usize] = y;
+                m.write_mem(*out as usize, y);
             },
-            Instruction::CmpEq(a, b, out) => {
+            CmpEq(a, b, out) => {
                 let y = if *a == *b {
                     1
                 } else {
                     0
                 };
-                m.mem[*out as usize] = y;
-            }
-            Instruction::Stop => m.halted = true,
+                m.write_mem(*out as usize, y);
+            },
+            SetBase(a) => m.base_reg += *a,
+            Stop => m.halted = true,
         }
         if new_pc < std::u32::MAX {
             new_pc
@@ -77,92 +85,108 @@ impl Instruction {
     }
 }
 
-fn imm_mask_from_cmd(cmd: u32) -> u32 {
-    let mut c = cmd / 100; // Drop the bottom two decimal digits, these are opcode
-    let mut mask = 0u32;
-    let mut b = 0;
-    while c > 0 {
-        match c % 10 {
-            0 => (),
-            1 => mask |= 1<<b,
-            _ => panic!("Unrecognized argument code: {}", c),
-        }
-        c = c / 10;
-        b += 1;
+enum ArgMode {
+    Absolute = 0,
+    Immediate = 1,
+    Relative = 2,
+}
+
+fn arg_mode(cmd: u32, arg: u32) -> ArgMode {
+    // The first 10^2 is for the opcode two digits
+    let digit = cmd / 10u32.pow((2 + arg) as u32) % 10;
+    match digit {
+        0 => ArgMode::Absolute,
+        1 => ArgMode::Immediate,
+        2 => ArgMode::Relative,
+        _ => panic!("Unallowed argument flag"),
     }
-    mask
 }
 
 pub struct Executor {
     pc: u32,
-    mem: Vec<i32>,
-    input: Vec<i32>,
+    mem: Vec<i64>,
+    base_reg: i64,
+    input: Vec<i64>,
     inptr: usize,
-    output: Vec<i32>,
+    pub output: Vec<i64>,
     halted: bool
 }
 
 impl Executor {
-    pub fn new(program: Vec<i32>) -> Executor {
-        Executor{pc: 0, mem: program, output: Vec::<i32>::new(), input: Vec::<i32>::new(), inptr: 0, halted: false}
+    pub fn new(program: Vec<i64>) -> Executor {
+        Executor{pc: 0, mem: program, output: Vec::<i64>::new(), input: Vec::<i64>::new(), inptr: 0, halted: false, base_reg: 0}
     }
 
-    pub fn set_input(&mut self, input: Vec<i32>) {
+    pub fn read_mem(&mut self, addr: usize) -> i64 {
+        // Grow memory to accomodate if needed
+        if addr >= self.mem.len() {
+            self.mem.resize(addr + 1, 0);
+        }
+        self.mem[addr]
+    }
+
+    pub fn write_mem(&mut self, addr: usize, value: i64) {
+        // Grow memory to accomodate as needed
+        if addr >= self.mem.len() {
+            self.mem.resize(addr + 1, 0);
+        }
+        self.mem[addr] = value;
+    }
+
+    pub fn set_input(&mut self, input: Vec<i64>) {
         self.input = input;
         self.inptr = 0;
     }
 
-    pub fn read_input(&mut self) -> i32 {
+    pub fn read_input(&mut self) -> i64 {
         self.inptr += 1;
         println!("Reading input value {}", self.input[self.inptr-1]);
         self.input[self.inptr-1]
     }
 
-    pub fn write_output(&mut self, x: i32) {
+    pub fn write_output(&mut self, x: i64) {
         self.output.push(x);
         println!("Out: {}", x);
     }
 
-    pub fn load(&self) -> Instruction {
-        let mem = &self.mem;
+    pub fn load(&mut self) -> Instruction {
         let pc = self.pc as usize;
-        let cmd = mem[pc] as u32;
+        let cmd = self.read_mem(pc) as u32;
         let opcode = cmd % 100;
-        let imm_mask = imm_mask_from_cmd(cmd);
-
-        println!("Immediate mask: {}", imm_mask);
         
         let mut pos = 0u32;
 
-        let mut read_argument = |output: bool| -> i32 {
-            let arg = mem[pc + pos  as usize + 1];
-            if output { // Outputs are always returned as address
-                pos += 1;
-                return arg;
-            }
-            let result = if imm_mask & (1<<pos) != 0 {
-                arg
-            } else {
-                if arg < 0 || arg as usize >= mem.len() {
-                    self.dump("".to_string());
-                    panic!("Out of range memory access. PC: {}, ADDR: {}", pc, arg);
+        let mut read_argument = |output: bool| -> i64 {
+            let arg = self.read_mem(pc + pos  as usize + 1);
+            let result = if output {
+                match arg_mode(cmd, pos) {
+                    ArgMode::Immediate => panic!("Cannot use immediate mode for output arg"),
+                    ArgMode::Absolute => arg,
+                    ArgMode::Relative => arg + self.base_reg,
                 }
-                mem[arg as usize]
+            } else {
+                match arg_mode(cmd, pos) {
+                    ArgMode::Immediate => arg,
+                    ArgMode::Absolute => self.read_mem(arg as usize),
+                    ArgMode::Relative => self.read_mem((arg + self.base_reg) as usize),
+                }
             };
             pos += 1;
             result
         };
 
+        use Instruction::*;
         let instr = match opcode {
-            1 => Instruction::Add(read_argument(false), read_argument(false), read_argument(true)),
-            2 => Instruction::Mult(read_argument(false), read_argument(false), read_argument(true)),
-            3 => Instruction::Input(read_argument(true)),
-            4 => Instruction::Output(read_argument(false)),
-            5 => Instruction::JmpTrue(read_argument(false), read_argument(false)),
-            6 => Instruction::JmpFalse(read_argument(false), read_argument(false)),
-            7 => Instruction::CmpLt(read_argument(false), read_argument(false), read_argument(true)),
-            8 => Instruction::CmpEq(read_argument(false), read_argument(false), read_argument(true)),
-            99 => Instruction::Stop{},
+            1 => Add(read_argument(false), read_argument(false), read_argument(true)),
+            2 => Mult(read_argument(false), read_argument(false), read_argument(true)),
+            3 => Input(read_argument(true)),
+            4 => Output(read_argument(false)),
+            5 => JmpTrue(read_argument(false), read_argument(false)),
+            6 => JmpFalse(read_argument(false), read_argument(false)),
+            7 => CmpLt(read_argument(false), read_argument(false), read_argument(true)),
+            8 => CmpEq(read_argument(false), read_argument(false), read_argument(true)),
+            9 => SetBase(read_argument(false)),
+            99 => Stop{},
             _ => {
               self.dump(format!("Unrecognized instruction: {} @ PC={}", opcode, pc));
               panic!("Aborting");  
@@ -176,7 +200,18 @@ impl Executor {
         self.pc = i.run(self);
     }
 
-    pub fn run_to_output(&mut self) -> Option<i32> {
+    /// Run program until it halts
+    pub fn run(&mut self) {
+        loop {
+            let instruction = self.load();
+            self.execute(&instruction);
+            if self.halted {
+                break;
+            }
+        }
+    }
+
+    pub fn run_to_output(&mut self) -> Option<i64> {
         loop {
             let instruction = self.load();
             self.execute(&instruction);
@@ -206,21 +241,22 @@ impl Executor {
     }
 }
 
-pub fn read_program_from_string(s: String) -> Result<Vec<i32>> {
-    let ints: Vec<i32> = s.trim().split(",").map(|s| s.parse::<i32>().unwrap()).collect();
+pub fn read_program_from_string(s: String) -> Result<Vec<i64>> {
+    let ints: Vec<i64> = s.trim().split(",").map(|s| s.parse::<i64>().unwrap()).collect();
     Ok(ints)
 }
 
-pub fn read_program_from_file(file: String) -> Result<Vec<i32>> {
+pub fn read_program_from_file(file: String) -> Result<Vec<i64>> {
     let content = fs::read_to_string(file)?;
     read_program_from_string(content)
 }
 
-pub fn execute_program(program: &Vec<i32>, input: &Vec<i32>) -> (Vec<i32>, Vec<i32>) {
+pub fn execute_program(program: &Vec<i64>, input: &Vec<i64>) -> (Vec<i64>, Vec<i64>) {
     let mut exec = Executor::new(program.clone());
     exec.set_input(input.clone());
     while !exec.halted {
-        exec.execute(&exec.load());
+        let i = exec.load();
+        exec.execute(&i);
     }
     
     (exec.mem, exec.output)

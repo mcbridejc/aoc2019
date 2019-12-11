@@ -28,12 +28,12 @@ fn permutations(values: &Vec<i32>) -> Vec<Vec<i32>> {
     r
 }
 
-fn part1(program: &Vec<i32>) -> i32 {
-    let mut max_out = 0;
+fn part1(program: &Vec<i64>) -> i64 {
+    let mut max_out = 0i64;
     for phase in permutations(&vec![0, 1, 2, 3, 4]) {
-        let mut input = vec![0, 0];
+        let mut input: Vec<i64> = vec![0, 0];
         for i in 0..NUM_AMP {
-            input[0] = phase[i];
+            input[0] = phase[i] as i64;
             let (_mem, output) = execute_program(&program, &input);
             input[1] = output[0];
         }
@@ -42,7 +42,7 @@ fn part1(program: &Vec<i32>) -> i32 {
     return max_out;
 }
 
-fn part2(program: &Vec<i32>) -> i32 {
+fn part2(program: &Vec<i64>) -> i64 {
     let mut max_out = 0;
     for phase in permutations(&vec![5, 6, 7, 8, 9]) {
         let mut boxen = vec![];
@@ -51,10 +51,10 @@ fn part2(program: &Vec<i32>) -> i32 {
         }
 
         // First round, we input phase
-        let mut input = vec![0, 0];
+        let mut input = vec![0i64, 0];
         let mut amp_output = 0;
         for i in 0..NUM_AMP {
-            input[0] = phase[i];
+            input[0] = phase[i] as i64;
             boxen[i].set_input(input.clone());
             let output = boxen[i].run_to_output().unwrap(); 
             input[1] = output;

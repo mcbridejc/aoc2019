@@ -2,15 +2,15 @@ use structopt::StructOpt;
 use aoc2019::intcode::{execute_program, read_program_from_file, read_program_from_string};
 use aoc2019::StandardOptions;
 
-fn part1(program: Vec<i32>) -> i32{
-    let input: Vec<i32> = vec![1];
+fn part1(program: Vec<i64>) -> i64 {
+    let input: Vec<i64> = vec![1];
     let (_mem, output) = execute_program(&program, &input);
     println!("Program output: {:?}",  output);
     output[output.len()-1]
 }
 
-fn part2(program: Vec<i32>) -> i32 {
-    let input: Vec<i32> = vec![5];
+fn part2(program: Vec<i64>) -> i64 {
+    let input: Vec<i64> = vec![5];
     let (_mem, output) = execute_program(&program, &input);
     println!("Program output: {:?}",  output);
     output[output.len()-1]
