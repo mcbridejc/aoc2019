@@ -1,7 +1,7 @@
 use std::cmp::{max};
 use log::*;
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone)]
 pub struct Location {
     pub x: i32,
     pub y: i32,
