@@ -48,14 +48,19 @@ pub struct Grid<T: Clone> {
     pub height: i32,
 
     data: Vec<Option<T>>,
+    default: Option<T>,
 }
 
 impl<T: Clone> Grid<T> {
     pub fn empty() -> Grid<T> {
-        Grid{top:0, left:0, width: 0, height: 0, data: Vec::<Option<T>>::new()}
+        Self::empty_with_default(None)
+    }
+    
+    pub fn empty_with_default(default: Option<T>) -> Grid<T> {
+        Grid{top:0, left:0, width: 0, height: 0, default, data: Vec::<Option<T>>::new()}
     }
     pub fn new(left: i32, top: i32, width: i32, height: i32, default: Option<T>) -> Grid<T> {
-        Grid{top, left, width, height, data: vec![default; (width*height) as usize]}
+        Grid{top, left, width, height, default: default.clone(), data: vec![default.clone(); (width*height) as usize]}
     }
 
     pub fn set(&mut self, loc: &Location, value: Option<T>) {
@@ -64,23 +69,28 @@ impl<T: Clone> Grid<T> {
         self.data[offset as usize] = value;
     }
 
-    pub fn get(&self, loc: &Location) -> Option<T> {
-        if loc.x < self.left || loc.x >= self.width + self.left || loc.y < self.top || loc.y >= self.height + self.top {
-            debug!("Out of range get");
-            return None;
-        }
+    pub fn iter(&mut self) -> GridIterator<T> {
+        GridIterator{x: self.left, y: self.top, grid: self}
+    }
+
+    pub fn get(&mut self, loc: &Location) -> Option<T> {
+        self.check_and_grow(loc);
+        // if loc.x < self.left || loc.x >= self.width + self.left || loc.y < self.top || loc.y >= self.height + self.top {
+        //     debug!("Out of range get");
+        //     return None;
+        // }
         let offset = (loc.y - self.top) * self.width + (loc.x - self.left);
         self.data[offset as usize].clone()
     }
 
     fn resize(&mut self, left: i32, top: i32, width: i32, height: i32) {
         debug!("Resizing to {}, {}, {}, {}", left, top, width, height);
-        let old = self.clone();
+        let mut old = self.clone();
         self.top = top;
         self.left = left;
         self.width = width;
         self.height = height;
-        self.data = vec![None; (width*height) as usize];
+        self.data = vec![self.default.clone(); (width*height) as usize];
 
         for x in old.left..old.left+old.width {
             for y in old.top..old.top+old.height {
@@ -120,6 +130,29 @@ impl<T: Clone> Grid<T> {
         if resize {
             self.resize(new_left, new_top, new_width, new_height);
         }
+    }
+}
+
+pub struct GridIterator<'a, T: Clone> {
+    x: i32,
+    y: i32,
+    grid: &'a mut Grid<T>,
+}
+
+impl<'a, T: Clone> Iterator for GridIterator<'a, T> {
+    type Item = (Location, Option<T>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.x >= self.grid.width + self.grid.left || self.y >= self.grid.height + self.grid.top {
+            return None
+        }
+        let item = self.grid.get(&xy(self.x, self.y));
+        self.x += 1;
+        if self.x >= self.grid.width + self.grid.left {
+            self.x = self.grid.left;
+            self.y += 1;
+        }
+        Some((xy(self.x, self.y), item))
     }
 }
 
