@@ -107,14 +107,13 @@ pub struct Executor {
     mem: Vec<i64>,
     base_reg: i64,
     input: Vec<i64>,
-    inptr: usize,
     pub output: Vec<i64>,
     halted: bool
 }
 
 impl Executor {
     pub fn new(program: Vec<i64>) -> Executor {
-        Executor{pc: 0, mem: program, output: Vec::<i64>::new(), input: Vec::<i64>::new(), inptr: 0, halted: false, base_reg: 0}
+        Executor{pc: 0, mem: program, output: Vec::<i64>::new(), input: Vec::<i64>::new(), halted: false, base_reg: 0}
     }
 
     pub fn read_mem(&mut self, addr: usize) -> i64 {
@@ -135,13 +134,12 @@ impl Executor {
 
     pub fn set_input(&mut self, input: Vec<i64>) {
         self.input = input;
-        self.inptr = 0;
     }
 
     pub fn read_input(&mut self) -> i64 {
-        self.inptr += 1;
-        println!("Reading input value {}", self.input[self.inptr-1]);
-        self.input[self.inptr-1]
+        let val = self.input.remove(0);
+        println!("Reading input value {}", val);
+        val
     }
 
     pub fn write_output(&mut self, x: i64) {
@@ -211,6 +209,23 @@ impl Executor {
         }
     }
 
+    /// Run program until an unsatisfied input instruction is reached
+    /// i.e. The input queue is empty and an input instruction is hit
+    /// Returns true if broken on input, false if machine halted
+    pub fn run_to_input(&mut self) -> bool {
+        use Instruction::*;
+        loop {
+            let instruction = self.load();
+            if discriminant(&instruction) == discriminant(&Input(0)) && self.input.len() == 0 {
+                return true;
+            }
+            self.execute(&instruction);
+            if self.halted {
+                return false;
+            }
+        }
+    }
+
     pub fn run_to_output(&mut self) -> Option<i64> {
         loop {
             let instruction = self.load();
@@ -222,6 +237,18 @@ impl Executor {
                 return None;
             }
         }
+    }
+
+    pub fn run_to_output_ntimes(&mut self, n: i32) -> Vec<i64> {
+        let mut result: Vec<i64> = Vec::new();
+        for _ in 0..n {
+            let output = self.run_to_output();
+            if output.is_none() {
+                return result;
+            }
+            result.push(output.unwrap());
+        }
+        result
     }
 
     pub fn dump(&self, msg: String) {
