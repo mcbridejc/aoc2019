@@ -1,5 +1,6 @@
 use std::cmp::{max};
 use log::*;
+use std::slice::Iter;
 
 #[derive(PartialEq, Eq, Hash, Debug, Copy, Clone)]
 pub struct Location {
@@ -13,6 +14,15 @@ pub enum Direction {
     South,
     East,
     West
+}
+
+
+impl Direction {
+    pub fn iter() -> Iter<'static, Direction> {
+        use Direction::*;
+        static DIRECTIONS: [Direction;  4] = [North, South, East, West];
+        DIRECTIONS.into_iter()
+    }
 }
 
 impl Location {

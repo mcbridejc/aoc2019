@@ -102,6 +102,7 @@ fn arg_mode(cmd: u32, arg: u32) -> ArgMode {
     }
 }
 
+#[derive(Clone)]
 pub struct Executor {
     pc: u32,
     mem: Vec<i64>,
@@ -190,7 +191,7 @@ impl Executor {
               panic!("Aborting");  
             },
         };
-        println!("{}: {:?}", pc, instr);
+        //println!("{}: {:?}", pc, instr);
         instr
     }
 
